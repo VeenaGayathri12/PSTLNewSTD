@@ -93,8 +93,7 @@ int main() {
               << "1. Sequential\n"
               << "2. Parallel\n"
               << "3. Parallel Unsequenced\n"
-	      << "4. Exit the program\n"
-              << "Enter choice (1/2/3/4): ";
+	      << "Enter choice (1/2/3): ";
     std::cin >> policy_choice;
 
     switch (policy_choice) {
