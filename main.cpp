@@ -110,14 +110,13 @@ int main() {
             std::cout << "Running with std::execution::par_unseq\n";
             RunTests(std::execution::par_unseq);
             break;
-	case '4':
+	
+        default:
                 std::cout << "Exiting program.\n";
                 return 0;
-        default:
-                std::cout << "Invalid choice. Please enter 1, 2, 3, or 4.\n";
         
     }
-    //}
+    
 
     return 0;
 }
