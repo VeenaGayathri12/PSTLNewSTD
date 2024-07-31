@@ -1,4 +1,4 @@
-// ParSTLTests.cpp : Defines the entry point for the console application.
+
 
 #include <algorithm>
 #include <chrono>
@@ -6,163 +6,75 @@
 #include <iostream>
 #include <numeric>
 #include <vector>
+
 template <typename TFunc>
 void RunAndMeasure(const char* title, TFunc func) {
-  const auto start = std::chrono::steady_clock::now();
-  auto ret = func();
-  const auto end = std::chrono::steady_clock::now();
-  std::cout << title << ": "
-            << std::chrono::duration<double, std::milli>(end - start).count()
-            << " ms, res " << ret << "\n";
+    const auto start = std::chrono::steady_clock::now();
+    auto ret = func();
+    const auto end = std::chrono::steady_clock::now();
+    std::cout << title << ": "
+              << std::chrono::duration<double, std::milli>(end - start).count()
+              << " ms, res " << ret << "\n";
 }
 
-int main() {
-  int size=6000000;
-  std::vector<double> v(6000000, 0.5);
-  std::vector<double> result(v.size());
+template <typename ExecutionPolicy>
+void RunTests(ExecutionPolicy&& policy) {
+    int size = 1024000000;
+    std::vector<double> v(size, 0.5);
+    std::vector<double> result(v.size());
 
-  std::vector<double> v1(size);
-  std::iota(v1.begin(), v1.end(), 1.0);
+    std::vector<double> v1(size);
+    std::iota(v1.begin(), v1.end(), 1.0);
 
+    RunAndMeasure("std::accumulate", [&v] {
+        return std::accumulate(v.begin(), v.end(), 0.0);
+    });
 
-  RunAndMeasure("std::warm up", [&v] {
-    return std::reduce(std::execution::seq, v.begin(), v.end(), 0.0);
-  });
+    RunAndMeasure("std::reduce", [&v, &policy] {
+        return std::reduce(policy, v.begin(), v.end(), 0.0);
+    });
 
-  RunAndMeasure("std::accumulate",
-                [&v] { return std::accumulate(v.begin(), v.end(), 0.0); });
+    RunAndMeasure("std::find", [&v, &policy] {
+        auto res = std::find(policy, std::begin(v), std::end(v), 0.6);
+        return res == std::end(v) ? 0.0 : 1.0;
+    });
 
-  RunAndMeasure("std::reduce, seq", [&v] {
-    return std::reduce(std::execution::seq, v.begin(), v.end(), 0.0);
-  });
-
-  RunAndMeasure("std::reduce, par", [&v] {
-    return std::reduce(std::execution::par, v.begin(), v.end(), 0.0);
-  });
-
-  RunAndMeasure("std::reduce, par_unseq", [&v] {
-    return std::reduce(std::execution::par_unseq, v.begin(), v.end(), 0.0);
-  });
-
-  RunAndMeasure("std::find, seq", [&v] {
-    auto res = std::find(std::execution::seq, std::begin(v), std::end(v), 0.6);
-    return res == std::end(v) ? 0.0 : 1.0;
-  });
-
-  RunAndMeasure("std::find, par", [&v] {
-    auto res = std::find(std::execution::par, std::begin(v), std::end(v), 0.6);
-    return res == std::end(v) ? 0.0 : 1.0;
-  });
-
-   RunAndMeasure("std::find, par_unseq", [&v] {
-    auto res = std::find(std::execution::par_unseq, std::begin(v), std::end(v), 0.6);
-    return res == std::end(v) ? 0.0 : 1.0;
-  });
-    RunAndMeasure("std::copy_if, seq", [&v, &result] {
-        auto new_end = std::copy_if(std::execution::seq, v.begin(), v.end(), result.begin(),
+    RunAndMeasure("std::copy_if", [&v, &result, &policy] {
+        auto new_end = std::copy_if(policy, v.begin(), v.end(), result.begin(),
                                     [](double value) { return value > 0.4; });
         return std::distance(result.begin(), new_end);
     });
 
-    RunAndMeasure("std::copy_if, par", [&v, &result] {
-        auto new_end = std::copy_if(std::execution::par, v.begin(), v.end(), result.begin(),
-                                    [](double value) { return value > 0.4; });
-        return std::distance(result.begin(), new_end);
-    });
-
-    RunAndMeasure("std::copy_if, par_unseq", [&v, &result] {
-        auto new_end = std::copy_if(std::execution::par_unseq, v.begin(), v.end(), result.begin(),
-                                    [](double value) { return value > 0.4; });
-        return std::distance(result.begin(), new_end);
-    });
-
-    RunAndMeasure("std::inclusive_scan, seq", [&v] {
+    RunAndMeasure("std::inclusive_scan", [&v, &policy] {
         std::vector<double> scan_result(v.size());
-        std::inclusive_scan(std::execution::seq, v.begin(), v.end(), scan_result.begin());
+        std::inclusive_scan(policy, v.begin(), v.end(), scan_result.begin());
         return scan_result.back();
     });
 
-    RunAndMeasure("std::inclusive_scan, par", [&v] {
-        std::vector<double> scan_result(v.size());
-        std::inclusive_scan(std::execution::par, v.begin(), v.end(), scan_result.begin());
-        return scan_result.back();
+    RunAndMeasure("std::min_element", [&v1, &policy] {
+        return *std::min_element(policy, v1.begin(), v1.end());
     });
 
-    RunAndMeasure("std::inclusive_scan, par_unseq", [&v] {
-        std::vector<double> scan_result(v.size());
-        std::inclusive_scan(std::execution::par_unseq, v.begin(), v.end(), scan_result.begin());
-        return scan_result.back();
+    RunAndMeasure("std::max_element", [&v1, &policy] {
+        return *std::max_element(policy, v1.begin(), v1.end());
     });
 
-
-    RunAndMeasure("std::min_element, seq", [&v1] {
-        return *std::min_element(std::execution::seq, v1.begin(), v1.end());
-    });
-
-    RunAndMeasure("std::min_element, par", [&v1] {
-        return *std::min_element(std::execution::par, v1.begin(), v1.end());
-    });
-
-    RunAndMeasure("std::min_element, par_unseq", [&v1] {
-        return *std::min_element(std::execution::par_unseq, v1.begin(), v1.end());
-    });
-
-    RunAndMeasure("std::max_element, seq", [&v1] {
-        return *std::max_element(std::execution::seq, v1.begin(), v1.end());
-    });
-
-    RunAndMeasure("std::max_element, par", [&v1] {
-        return *std::max_element(std::execution::par, v1.begin(), v1.end());
-    });
-
-    RunAndMeasure("std::max_element, par_unseq", [&v1] {
-        return *std::max_element(std::execution::par_unseq, v1.begin(), v1.end());
-    });
-
-    RunAndMeasure("std::minmax_element, seq", [&v1] {
-        auto result = std::minmax_element(std::execution::seq, v1.begin(), v1.end());
+    RunAndMeasure("std::minmax_element", [&v1, &policy] {
+        auto result = std::minmax_element(policy, v1.begin(), v1.end());
         return *result.first + *result.second;
     });
 
-    RunAndMeasure("std::minmax_element, par", [&v1] {
-        auto result = std::minmax_element(std::execution::par, v1.begin(), v1.end());
-        return *result.first + *result.second;
+    RunAndMeasure("std::is_partitioned", [&v, &policy] {
+        return std::is_partitioned(policy, v.begin(), v.end(), [](double n) { return n < 1.0; });
     });
 
-    RunAndMeasure("std::minmax_element, par_unseq", [&v1] {
-        auto result = std::minmax_element(std::execution::par_unseq, v1.begin(), v1.end());
-        return *result.first + *result.second;
-    });
-
-    RunAndMeasure("std::is_partitioned, seq", [&v] {
-        return std::is_partitioned(std::execution::seq, v.begin(), v.end(), [](double n) { return n < 1.0; });
-    });
-
-    RunAndMeasure("std::is_partitioned, par", [&v] {
-        return std::is_partitioned(std::execution::par, v.begin(), v.end(), [](double n) { return n < 1.0; });
-    });
-
-    RunAndMeasure("std::is_partitioned, par_unseq", [&v] {
-        return std::is_partitioned(std::execution::par_unseq, v.begin(), v.end(), [](double n) { return n < 1.0; });
-    });
-
-    RunAndMeasure("std::lexicographical_compare,  seq", [&v] {
-        std::vector<double> v2(6000000, 0.5);
-        return std::lexicographical_compare(std::execution::seq, v.begin(), v.end(), v2.begin(), v2.end());
-    });
-
-    RunAndMeasure("std::lexicographical_compare, par", [&v] {
-        std::vector<double> v2(6000000, 0.5);
-        return std::lexicographical_compare(std::execution::par, v.begin(), v.end(), v2.begin(), v2.end());
-    });
-
-    RunAndMeasure("std::lexicographical_compare, par_unseq", [&v] {
-        std::vector<double> v2(6000000, 0.5);
-        return std::lexicographical_compare(std::execution::par_unseq, v.begin(), v.end(), v2.begin(), v2.end());
+    RunAndMeasure("std::lexicographical_compare", [&v, &policy] {
+        std::vector<double> v2(1024000000, 0.5);
+        return std::lexicographical_compare(policy, v.begin(), v.end(), v2.begin(), v2.end());
     });
 
     RunAndMeasure("std::binary_search", [&v] {
-        return std::binary_search( v.begin(), v.end(), 0.5);
+        return std::binary_search(v.begin(), v.end(), 0.5);
     });
 
     RunAndMeasure("std::lower_bound", [&v1] {
@@ -170,8 +82,43 @@ int main() {
     });
 
     RunAndMeasure("std::upper_bound", [&v1] {
-        return *std::upper_bound( v1.begin(), v1.end(), 0.5);
+        return *std::upper_bound(v1.begin(), v1.end(), 0.5);
     });
-
-  return 0;
 }
+
+int main() {
+    char policy_choice;
+    
+    std::cout << "Choose execution policy: \n"
+              << "1. Sequential\n"
+              << "2. Parallel\n"
+              << "3. Parallel Unsequenced\n"
+	      << "4. Exit the program\n"
+              << "Enter choice (1/2/3/4): ";
+    std::cin >> policy_choice;
+
+    switch (policy_choice) {
+        case '1':
+            std::cout << "Running with std::execution::seq\n";
+            RunTests(std::execution::seq);
+            break;
+        case '2':
+            std::cout << "Running with std::execution::par\n";
+            RunTests(std::execution::par);
+            break;
+        case '3':
+            std::cout << "Running with std::execution::par_unseq\n";
+            RunTests(std::execution::par_unseq);
+            break;
+	case '4':
+                std::cout << "Exiting program.\n";
+                return 0;
+        default:
+                std::cout << "Invalid choice. Please enter 1, 2, 3, or 4.\n";
+        
+    }
+    //}
+
+    return 0;
+}
+
